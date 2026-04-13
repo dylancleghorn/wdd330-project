@@ -3,7 +3,7 @@ import { fetchRecentVulnerabilities, searchVulnerabilities, fetchCveHistory } fr
 import { fetchCirclDetail } from './api/circl.js';
 import { calculateRiskScore, summarizeStats } from './data/risk.js';
 import { getSettings, saveSettings } from './utils/storage.js';
-import { debounce, formatDateTime } from './utils/helpers.js';
+import { formatDateTime } from './utils/helpers.js';
 import {
   renderAppSkeleton,
   renderStats,
@@ -18,6 +18,7 @@ const state = {
   filteredVulnerabilities: [],
   selectedVulnerability: null,
   compactView: false,
+  appliedKeyword: '',
   settings: getSettings()
 };
 
@@ -52,18 +53,10 @@ function severityPriority(severity) {
 }
 
 function applyFilters() {
-  const searchText = keywordInput.value.trim().toLowerCase();
   const severityText = severityFilter.value;
   const sortText = sortBy.value;
 
   let results = [...state.allVulnerabilities];
-
-  if (searchText) {
-    results = results.filter((item) => {
-      const joinedText = `${item.id} ${item.description} ${item.vendor} ${item.product} ${item.cwe}`.toLowerCase();
-      return joinedText.includes(searchText);
-    });
-  }
 
   if (severityText !== 'ALL') {
     results = results.filter((item) => item.severity === severityText);
@@ -88,7 +81,7 @@ function applyFilters() {
 function persistSettings() {
   state.settings = {
     ...state.settings,
-    recentSearch: keywordInput.value,
+    recentSearch: keywordInput.value.trim(),
     severityFilter: severityFilter.value,
     sortBy: sortBy.value,
     savedView: state.compactView ? 'compact' : 'table',
@@ -128,8 +121,6 @@ function renderChart(vulnerabilities) {
   const entries = Object.entries(counts);
   const maxValue = Math.max(...Object.values(counts), 1);
 
-  // we are building this chart by hand with plain divs on purpose.
-  // that keeps the project inside the course rule of no JS libraries.
   chartContainer.innerHTML = entries
     .map(([label, value]) => {
       const heightPercent = Math.max((value / maxValue) * 100, value > 0 ? 10 : 0);
@@ -172,8 +163,6 @@ function renderEverything() {
   renderChart(state.filteredVulnerabilities);
   tableCount.textContent = `${state.filteredVulnerabilities.length} items`;
 
-  // don't auto-open the modal on page load.
-  // the user should choose a row or click a View button first.
   if (!state.selectedVulnerability) {
     renderDetails(detailsPanel, null, {}, []);
     closeDetailsModal();
@@ -204,6 +193,8 @@ async function loadInitialData() {
   const vulnerabilities = await fetchRecentVulnerabilities();
   state.allVulnerabilities = vulnerabilities;
   state.filteredVulnerabilities = vulnerabilities;
+  state.selectedVulnerability = null;
+  state.appliedKeyword = '';
 
   applyFilters();
 
@@ -214,7 +205,6 @@ async function loadInitialData() {
 async function runSearchFromApi() {
   const searchText = keywordInput.value.trim();
 
-  // if the box is empty, just go back to the recent feed
   if (!searchText) {
     await loadInitialData();
     return;
@@ -224,7 +214,9 @@ async function runSearchFromApi() {
 
   const vulnerabilities = await searchVulnerabilities(searchText);
   state.allVulnerabilities = vulnerabilities;
+  state.filteredVulnerabilities = vulnerabilities;
   state.selectedVulnerability = null;
+  state.appliedKeyword = searchText;
 
   applyFilters();
 
@@ -238,6 +230,11 @@ searchForm.addEventListener('submit', async (event) => {
 });
 
 refreshButton.addEventListener('click', async () => {
+  if (keywordInput.value.trim()) {
+    await runSearchFromApi();
+    return;
+  }
+
   await loadInitialData();
 });
 
@@ -245,20 +242,18 @@ clearButton.addEventListener('click', async () => {
   keywordInput.value = '';
   severityFilter.value = 'ALL';
   sortBy.value = 'published-desc';
+  state.appliedKeyword = '';
+  persistSettings();
   await loadInitialData();
 });
 
 severityFilter.addEventListener('change', applyFilters);
 sortBy.addEventListener('change', applyFilters);
 
-const debouncedFilter = debounce(() => {
-  applyFilters();
-}, 250);
+keywordInput.addEventListener('input', () => {
+  persistSettings();
+});
 
-keywordInput.addEventListener('input', debouncedFilter);
-
-// one more event for the rubric and also because this is handy.
-// compact mode makes the table a little tighter.
 toggleViewButton.addEventListener('click', () => {
   state.compactView = !state.compactView;
   renderTable(tableBody, state.filteredVulnerabilities, state.compactView);
@@ -279,9 +274,16 @@ tableBody.addEventListener('click', async (event) => {
   }
 });
 
-restoreSettings();
-loadInitialData();
+async function initializeApp() {
+  restoreSettings();
 
+  if (keywordInput.value.trim()) {
+    await runSearchFromApi();
+    return;
+  }
+
+  await loadInitialData();
+}
 
 closeModalButton.addEventListener('click', closeDetailsModal);
 
@@ -296,3 +298,5 @@ document.addEventListener('keydown', (event) => {
     closeDetailsModal();
   }
 });
+
+initializeApp();

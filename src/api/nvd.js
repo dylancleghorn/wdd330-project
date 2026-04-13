@@ -1,4 +1,5 @@
 import { mockVulnerabilities } from '../mockData.js';
+import { NVD_BASE_URL } from '../config/api.js';
 
 function buildMetricData(metrics = {}) {
   return (
@@ -72,7 +73,6 @@ async function readJson(url) {
 
 export async function fetchRecentVulnerabilities() {
   try {
-    // grabbing the last 30 days makes the dashboard feel current
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(endDate.getDate() - 30);
@@ -84,7 +84,7 @@ export async function fetchRecentVulnerabilities() {
       startIndex: '0'
     });
 
-    const data = await readJson(`/api/nvd/cves/2.0?${params.toString()}`);
+    const data = await readJson(`${NVD_BASE_URL}/cves/2.0?${params.toString()}`);
     return (data.vulnerabilities || []).map(normalizeCve);
   } catch (error) {
     console.error('Falling back to mock vulnerability data.', error);
@@ -100,7 +100,7 @@ export async function searchVulnerabilities(keyword = '') {
       startIndex: '0'
     });
 
-    const data = await readJson(`/api/nvd/cves/2.0?${params.toString()}`);
+    const data = await readJson(`${NVD_BASE_URL}/cves/2.0?${params.toString()}`);
     return (data.vulnerabilities || []).map(normalizeCve);
   } catch (error) {
     console.error('Search failed. Using mock fallback.', error);
@@ -115,7 +115,7 @@ export async function searchVulnerabilities(keyword = '') {
 export async function fetchCveHistory(cveId) {
   try {
     const params = new URLSearchParams({ cveId });
-    const data = await readJson(`/api/nvd/cvehistory/2.0?${params.toString()}`);
+    const data = await readJson(`${NVD_BASE_URL}/cvehistory/2.0?${params.toString()}`);
     return data.cveChanges || [];
   } catch (error) {
     console.error('Could not load NVD change history.', error);
