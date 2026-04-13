@@ -1,5 +1,4 @@
 import { mockCirclDetails } from '../mockData.js';
-import { CIRCL_BASE_URL } from '../config/api.js';
 
 async function readJson(url) {
   const response = await fetch(url);
@@ -24,7 +23,7 @@ function normalizeCirclDetail(data = {}) {
 
 export async function fetchCirclDetail(cveId) {
   try {
-    const data = await readJson(`${CIRCL_BASE_URL}/api/cve/${cveId}`);
+    const data = await readJson(`/api/circl/api/cve/${cveId}`);
     return normalizeCirclDetail(data);
   } catch (error) {
     console.error('Could not load CIRCL enrichment.', error);

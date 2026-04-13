@@ -1,6 +1,6 @@
 import './style.css';
 import { fetchRecentVulnerabilities, searchVulnerabilities, fetchCveHistory } from './api/nvd.js';
-import { fetchCirclDetail } from './api/circl.js';
+import { fetchEpssDetail } from './api/epss.js';
 import { calculateRiskScore, summarizeStats } from './data/risk.js';
 import { getSettings, saveSettings } from './utils/storage.js';
 import { formatDateTime } from './utils/helpers.js';
@@ -18,7 +18,6 @@ const state = {
   filteredVulnerabilities: [],
   selectedVulnerability: null,
   compactView: false,
-  appliedKeyword: '',
   settings: getSettings()
 };
 
@@ -73,7 +72,6 @@ function applyFilters() {
   }
 
   state.filteredVulnerabilities = results;
-
   renderEverything();
   persistSettings();
 }
@@ -81,7 +79,7 @@ function applyFilters() {
 function persistSettings() {
   state.settings = {
     ...state.settings,
-    recentSearch: keywordInput.value.trim(),
+    recentSearch: keywordInput.value,
     severityFilter: severityFilter.value,
     sortBy: sortBy.value,
     savedView: state.compactView ? 'compact' : 'table',
@@ -176,14 +174,14 @@ async function loadDetails(cveId) {
 
   state.selectedVulnerability = selected;
   detailsPanel.className = 'details-panel loading-state';
-  detailsPanel.textContent = 'Loading extra NVD and CIRCL details...';
+  detailsPanel.textContent = 'Loading extra NVD and EPSS details...';
 
-  const [circlDetail, history] = await Promise.all([
-    fetchCirclDetail(cveId),
+  const [epssDetail, history] = await Promise.all([
+    fetchEpssDetail(cveId),
     fetchCveHistory(cveId)
   ]);
 
-  renderDetails(detailsPanel, selected, circlDetail, history);
+  renderDetails(detailsPanel, selected, epssDetail, history);
   openDetailsModal();
 }
 
@@ -192,9 +190,7 @@ async function loadInitialData() {
 
   const vulnerabilities = await fetchRecentVulnerabilities();
   state.allVulnerabilities = vulnerabilities;
-  state.filteredVulnerabilities = vulnerabilities;
   state.selectedVulnerability = null;
-  state.appliedKeyword = '';
 
   applyFilters();
 
@@ -214,9 +210,7 @@ async function runSearchFromApi() {
 
   const vulnerabilities = await searchVulnerabilities(searchText);
   state.allVulnerabilities = vulnerabilities;
-  state.filteredVulnerabilities = vulnerabilities;
   state.selectedVulnerability = null;
-  state.appliedKeyword = searchText;
 
   applyFilters();
 
@@ -242,17 +236,13 @@ clearButton.addEventListener('click', async () => {
   keywordInput.value = '';
   severityFilter.value = 'ALL';
   sortBy.value = 'published-desc';
-  state.appliedKeyword = '';
   persistSettings();
   await loadInitialData();
 });
 
 severityFilter.addEventListener('change', applyFilters);
 sortBy.addEventListener('change', applyFilters);
-
-keywordInput.addEventListener('input', () => {
-  persistSettings();
-});
+keywordInput.addEventListener('input', persistSettings);
 
 toggleViewButton.addEventListener('click', () => {
   state.compactView = !state.compactView;
@@ -274,15 +264,11 @@ tableBody.addEventListener('click', async (event) => {
   }
 });
 
-async function initializeApp() {
-  restoreSettings();
-
-  if (keywordInput.value.trim()) {
-    await runSearchFromApi();
-    return;
-  }
-
-  await loadInitialData();
+restoreSettings();
+if (keywordInput.value.trim()) {
+  runSearchFromApi();
+} else {
+  loadInitialData();
 }
 
 closeModalButton.addEventListener('click', closeDetailsModal);
@@ -298,5 +284,3 @@ document.addEventListener('keydown', (event) => {
     closeDetailsModal();
   }
 });
-
-initializeApp();

@@ -1,8 +1,5 @@
 import { defineConfig } from 'vite';
 
-// keeping this really simple on purpose.
-// the proxy lets the browser call the APIs through Vite during local dev.
-// that helps avoid browser CORS issues.
 export default defineConfig({
   server: {
     port: 5173,
@@ -12,10 +9,10 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/nvd/, '')
       },
-      '/api/circl': {
-        target: 'https://cve.circl.lu',
+      '/api/epss': {
+        target: 'https://api.first.org/data/v1',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/circl/, '')
+        rewrite: (path) => path.replace(/^\/api\/epss/, '')
       }
     }
   }

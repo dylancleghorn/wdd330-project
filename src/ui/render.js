@@ -34,7 +34,7 @@ export function renderAppSkeleton(root) {
             <p class="eyebrow">What this app does</p>
             <h3>Track recent vulnerabilities and enrich them with extra context</h3>
             <p class="hero-copy">
-              NVD provides the main CVE feed. CIRCL adds extra detail when a user opens a vulnerability.
+              NVD provides the main CVE feed. FIRST EPSS adds exploit probability context when a user opens a vulnerability.
               The dashboard then calculates a simple risk score from what was found.
             </p>
           </div>
@@ -146,7 +146,7 @@ export function renderAppSkeleton(root) {
             <div class="section-heading-row modal-header">
               <div>
                 <p class="eyebrow">Selected vulnerability</p>
-                <h3 id="details-modal-title">NVD + CIRCL detail panel</h3>
+                <h3 id="details-modal-title">NVD + EPSS detail panel</h3>
               </div>
               <button type="button" class="ghost-button modal-close-button" id="close-modal-button">Close</button>
             </div>
@@ -215,7 +215,7 @@ export function renderTable(container, vulnerabilities, compactView = false) {
     .join('');
 }
 
-export function renderDetails(container, vulnerability, circlDetail, history = []) {
+export function renderDetails(container, vulnerability, epssDetail, history = []) {
   if (!vulnerability) {
     container.className = 'details-panel empty-state';
     container.textContent = 'Click a row or button to load extra details for a CVE.';
@@ -238,14 +238,6 @@ export function renderDetails(container, vulnerability, circlDetail, history = [
       </ul>`
     : '<p class="muted-copy">No recent NVD history records were returned for this CVE.</p>';
 
-  const referenceMarkup = circlDetail.references?.length
-    ? `<ul class="reference-list">
-        ${circlDetail.references
-      .slice(0, 5)
-      .map((url) => `<li><a href="${url}" target="_blank" rel="noreferrer">${url}</a></li>`)
-      .join('')}
-      </ul>`
-    : '<p class="muted-copy">No CIRCL references available right now.</p>';
 
   container.className = 'details-panel';
   container.innerHTML = `
@@ -277,11 +269,11 @@ export function renderDetails(container, vulnerability, circlDetail, history = [
     </div>
 
     <div class="detail-section">
-      <h5>CIRCL enrichment</h5>
-      <p class="muted-copy">${circlDetail.summary}</p>
-      <p class="muted-copy">Assigner: ${circlDetail.assigner}</p>
-      <p class="muted-copy">Exploit flag: ${circlDetail.exploited ? 'Yes' : 'No'}</p>
-      ${referenceMarkup}
+      <h5>EPSS enrichment</h5>
+      <p class="muted-copy">${epssDetail.label}</p>
+      <p class="muted-copy">Exploit probability: ${epssDetail.probabilityPercent}%</p>
+      <p class="muted-copy">Percentile rank: ${epssDetail.percentilePercent}%</p>
+      <p class="muted-copy">EPSS date: ${epssDetail.date}</p>
     </div>
 
     <div class="detail-section">
